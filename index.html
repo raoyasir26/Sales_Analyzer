@@ -1,0 +1,244 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Sales Analyzer Final Working</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.css" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+<style>
+    body { font-family: 'Inter', sans-serif; direction: ltr; }
+    table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
+    th, td { border: 1px solid #ccc; padding: 4px; text-align: center; }
+  </style>
+</head>
+<body class="bg-gray-100 p-6">
+<h1 class="text-3xl text-center text-blue-700 font-bold mb-6">📊 Sales Analyzer</h1>
+<div class="text-center mb-4">
+
+<div style="margin-bottom: 30px; font-family: sans-serif;">
+<button onclick="document.getElementById('howToUseBox').style.display = 
+    document.getElementById('howToUseBox').style.display === 'none' ? 'block' : 'none';" style="background-color: #2563eb; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;">
+    How to Use?
+  </button>
+<div id="howToUseBox" style="display: none; margin-top: 15px; border: 1px solid #cbd5e1; background-color: #f8fafc; padding: 20px; border-radius: 10px;">
+<ul style="line-height: 1.8; padding-left: 20px; font-size: 15px;">
+<li><strong>1. Upload Excel File:</strong> Upload your sales data Excel file (.xlsx format).</li>
+<li><strong>2. Required Columns:</strong> Ensure the file contains columns like "Team", "Customer", "Brick", "Product", "Distributor", and monthly sales columns (JulSalesUnit, AugSalesUnit, ..., JunSalesUnit).</li>
+<li><strong>3. Fill Missing Sales:</strong> The <b>first sales cell from July to June</b> must not be empty. If the first month's sales cell is empty, add "0", otherwise calculation will not work properly.</li>
+<li><strong>4. Apply Filters:</strong> First select Distributor → then Brick → then Customer → then Product → Month.</li>
+<li><strong>5. Smart Filters:</strong> Brick dropdown updates based on selected Distributor. Customer dropdown updates based on selected Brick.</li>
+<li><strong>6. Analyze Data:</strong> Click "Analyze" to see the filtered sales report in the table.</li>
+</ul>
+<p style="margin-top: 10px; font-weight: bold;">✅ Important: Before uploading, double-check that all required columns exist, and the first sales cell is properly filled.</p>
+</div>
+</div>
+<input accept=".xlsx" class="mb-4" id="upload" type="file"/>
+<div class="flex flex-wrap justify-center gap-2 mb-4">
+<select id="filterDistributor" placeholder="Distributor..."></select>
+<select id="filterCustomer" placeholder="Customer..."></select>
+<select id="filterBrick" placeholder="Brick..."></select>
+<select id="filterProduct" placeholder="Product..."></select>
+<select id="filterMonth" placeholder="Month..."></select>
+</div>
+<button class="px-4 py-2 bg-green-600 text-white rounded" onclick="analyzeSales()">Analyze</button>
+</div>
+<div class="mt-6" id="output"></div>
+<script>
+let longData = [];
+let jsonData = [];
+
+document.getElementById('upload').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  const reader = new FileReader();
+  reader.onload = function (e) {
+    const data = new Uint8Array(e.target.result);
+    const workbook = XLSX.read(data, { type: 'array' });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    jsonData = XLSX.utils.sheet_to_json(sheet);
+
+    longData = [];
+    const monthColumns = Object.keys(jsonData[0]).filter(k => /^[A-Za-z]{3}SalesUnit$/.test(k));
+    jsonData.forEach(row => {
+      monthColumns.forEach(col => {
+        const month = col.replace('SalesUnit', '');
+        if (row[col] != null && row[col] !== "") {
+          longData.push({
+            Team: row.Team,
+            CustomerID: row.Customer,
+            Brick: row.Brick,
+            Product: row.Product,
+            Distributor: row.Distributor,
+            Month: month,
+            Sales: Number(row[col]) || 0
+          });
+        }
+      });
+    });
+
+    populateFilters();
+    alert("File uploaded successfully. Now click Analyze.");
+  };
+  reader.readAsArrayBuffer(file);
+});
+
+function populateFilters() {
+  const unique = (arr, key) => [...new Set(arr.map(i => i[key]).filter(Boolean))].sort();
+  const setOpts = (id, key) => {
+    const el = document.getElementById(id);
+    el.innerHTML = `<option value="">All</option>`;
+    unique(longData, key).forEach(v => {
+      const opt = document.createElement('option');
+      opt.value = v; opt.text = v;
+      el.appendChild(opt);
+    });
+    new TomSelect(el);
+  };
+  setOpts('filterDistributor', 'Distributor');
+  setOpts('filterCustomer', 'CustomerID');
+  setOpts('filterBrick', 'Brick');
+  setOpts('filterProduct', 'Product');
+  setOpts('filterMonth', 'Month');
+}
+
+function getOrderedMonths(data) {
+  const fiscalOrder = ["Jul","Aug","Sep","Oct","Nov","Dec","Jan","Feb","Mar","Apr","May","Jun"];
+  return [...new Set(data.map(d => d.Month))].sort((a, b) => fiscalOrder.indexOf(a) - fiscalOrder.indexOf(b));
+}
+
+function analyzeSales() {
+  const filters = {
+    Distributor: document.getElementById('filterDistributor').value,
+    CustomerID: document.getElementById('filterCustomer').value,
+    Brick: document.getElementById('filterBrick').value,
+    Product: document.getElementById('filterProduct').value,
+    Month: document.getElementById('filterMonth').value
+  };
+
+  let filtered = longData.filter(d =>
+    (!filters.Distributor || d.Distributor === filters.Distributor) &&
+    (!filters.CustomerID || d.CustomerID === filters.CustomerID) &&
+    (!filters.Brick || d.Brick === filters.Brick) &&
+    (!filters.Product || d.Product === filters.Product) &&
+    (!filters.Month || d.Month === filters.Month)
+  );
+
+  const output = document.getElementById('output');
+  output.innerHTML = '';
+
+  const months = ["Jul", "Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun"];
+  let salesRow = `<table><tr>`;
+  months.forEach(m => salesRow += `<td>${m}SalesUnit</td>`);
+  salesRow += `</tr><tr>`;
+  months.forEach(m => salesRow += `<td>${jsonData[0][m + 'SalesUnit'] || 0}</td>`);
+  salesRow += `</tr></table>`;
+// output.innerHTML += salesRow;
+
+  const orderedMonths = getOrderedMonths(filtered);
+  const distributors = [...new Set(filtered.map(d => d.Distributor))];
+
+  distributors.forEach(distributor => {
+    const distData = filtered.filter(d => d.Distributor === distributor);
+    const totalDistCustomers = [...new Set(distData.map(d => d.CustomerID))].length;
+    const products = [...new Set(distData.map(d => d.Product))];
+
+    products.forEach(product => {
+      const productData = distData.filter(d => d.Product === product);
+      const totalProductSales = productData.reduce((sum, d) => sum + d.Sales, 0);
+      const productCustomers = [...new Set(productData.map(d => d.CustomerID))].length;
+
+      let tableHTML = `
+        <div class="bg-white shadow rounded p-4 mb-6">
+          <h2 class="text-xl font-bold mb-2 text-blue-700">${distributor} - ${product} <span class="text-sm text-gray-600">(${totalProductSales} units)</span></h2>
+          <p class="text-sm mb-2 text-gray-600">Product Customers: <strong>${productCustomers}</strong> / Distributor Total: <strong>${totalDistCustomers}</strong></p>
+          <table class="w-full text-sm table-auto border">
+            <thead class="bg-blue-600 text-white">
+              <tr>
+                <th>Month</th><th>Retention %</th><th>Growth %</th><th>Retained</th><th>New</th><th>Lost</th><th>Coverage</th><th>Sales</th>
+              </tr>
+            </thead>
+            <tbody>
+      `;
+
+      for (let i = 1; i < orderedMonths.length; i++) {
+        const prevMonth = orderedMonths[i - 1];
+        const currMonth = orderedMonths[i];
+        const prev = productData.filter(d => d.Month === prevMonth);
+        const curr = productData.filter(d => d.Month === currMonth);
+        const prevCust = [...new Set(prev.map(d => d.CustomerID))];
+        const currCust = [...new Set(curr.map(d => d.CustomerID))];
+        const retained = currCust.filter(id => prevCust.includes(id));
+        const newCust = currCust.filter(id => !prevCust.includes(id));
+        const lostCust = prevCust.filter(id => !currCust.includes(id));
+        const prevSales = prev.reduce((sum, d) => sum + d.Sales, 0);
+        const currSales = curr.reduce((sum, d) => sum + d.Sales, 0);
+        const growth = prevSales ? (((currSales - prevSales) / prevSales) * 100).toFixed(1) : '—';
+        const retention = prevCust.length ? ((retained.length / prevCust.length) * 100).toFixed(1) : '—';
+        const coverage = totalDistCustomers ? `${currCust.length} / ${totalDistCustomers} (${((currCust.length / totalDistCustomers) * 100).toFixed(1)}%)` : '—';
+
+        tableHTML += `
+          <tr>
+            <td>${prevMonth} vs ${currMonth}</td>
+            <td>${retention}%</td>
+            <td>${growth}%</td>
+            <td>${retained.length}</td>
+            <td>${newCust.length}</td>
+            <td>${lostCust.length}</td>
+            <td>${coverage}</td>
+            <td>${currSales}</td>
+          </tr>
+        `;
+      }
+
+      tableHTML += `</tbody></table></div>`;
+
+      // Insert month-wise sales row inside product block
+      let monthWiseRow = '<tr><td colspan="8" class="bg-gray-100 text-left px-2 py-1 text-sm text-gray-600">Month-wise Sales (Jul - Jun)</td></tr>';
+      monthWiseRow += '<tr>';
+      const fixedMonthOrder = ["Jul", "Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun"];
+      fixedMonthOrder.forEach(month => {
+        const sales = productData.filter(d => d.Month === month).reduce((sum, d) => sum + d.Sales, 0);
+        monthWiseRow += `<td>${month}: ${sales}</td>`;
+      });
+      monthWiseRow += '</tr>';
+      tableHTML = tableHTML.replace('</tbody>', `${monthWiseRow}</tbody>`);
+                
+      output.innerHTML += tableHTML;
+    });
+  });
+}
+document.getElementById('filterBrick').addEventListener('change', function() {
+    const selectedBrick = this.value;
+    const customerSelect = document.getElementById('filterCustomer');
+    customerSelect.tomselect.destroy();
+    customerSelect.innerHTML = `<option value="">All</option>`;
+    
+    const filteredCustomers = [...new Set(longData.filter(d => !selectedBrick || d.Brick === selectedBrick).map(d => d.CustomerID))];
+    filteredCustomers.forEach(customer => {
+        const opt = document.createElement('option');
+        opt.value = opt.text = customer;
+        customerSelect.appendChild(opt);
+    });
+    new TomSelect(customerSelect);
+});
+
+document.getElementById('filterDistributor').addEventListener('change', function() {
+    const selectedDistributor = this.value;
+    const brickSelect = document.getElementById('filterBrick');
+    brickSelect.tomselect.destroy();
+    brickSelect.innerHTML = `<option value="">All</option>`;
+    
+    const filteredBricks = [...new Set(longData.filter(d => !selectedDistributor || d.Distributor === selectedDistributor).map(d => d.Brick))];
+    filteredBricks.forEach(brick => {
+        const opt = document.createElement('option');
+        opt.value = opt.text = brick;
+        brickSelect.appendChild(opt);
+    });
+    new TomSelect(brickSelect);
+});
+</script>
+<footer class="text-center text-gray-500 text-xs mt-8">Prepared by Rao Yasir</footer></body>
+</html>
