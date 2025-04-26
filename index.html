@@ -1,10 +1,9 @@
 
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
-<title>Sales Analyzer Final Working</title>
+<title>Sales Analyzer</title>
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
 <link href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.css" rel="stylesheet"/>
@@ -13,17 +12,20 @@
     body { font-family: 'Inter', sans-serif; direction: ltr; }
     table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
     th, td { border: 1px solid #ccc; padding: 4px; text-align: center; }
-  </style>
+</style>
 </head>
 <body class="bg-gray-100 p-6">
-<h1 class="text-3xl text-center text-blue-700 font-bold mb-6">📊 Sales Analyzer</h1>
-<div class="text-center mb-4">
 
+<h1 class="text-3xl text-center text-blue-700 font-bold mb-6">📊 Sales Analyzer</h1>
+
+<div class="text-center mb-4">
+<!-- How to Use Button and Instructions -->
 <div style="margin-bottom: 30px; font-family: sans-serif;">
 <button onclick="document.getElementById('howToUseBox').style.display = 
-    document.getElementById('howToUseBox').style.display === 'none' ? 'block' : 'none';" style="background-color: #2563eb; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;">
+    document.getElementById('howToUseBox').style.display === 'none' ? 'block' : 'none';" 
+    style="background-color: #2563eb; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;">
     How to Use?
-  </button>
+</button>
 <div id="howToUseBox" style="display: none; margin-top: 15px; border: 1px solid #cbd5e1; background-color: #f8fafc; padding: 20px; border-radius: 10px;">
 <ul style="line-height: 1.8; padding-left: 20px; font-size: 15px;">
 <li><strong>1. Upload Excel File:</strong> Upload your sales data Excel file (.xlsx format).</li>
@@ -36,7 +38,9 @@
 <p style="margin-top: 10px; font-weight: bold;">✅ Important: Before uploading, double-check that all required columns exist, and the first sales cell is properly filled.</p>
 </div>
 </div>
+
 <input accept=".xlsx" class="mb-4" id="upload" type="file"/>
+
 <div class="flex flex-wrap justify-center gap-2 mb-4">
 <select id="filterDistributor" placeholder="Distributor..."></select>
 <select id="filterCustomer" placeholder="Customer..."></select>
@@ -44,9 +48,12 @@
 <select id="filterProduct" placeholder="Product..."></select>
 <select id="filterMonth" placeholder="Month..."></select>
 </div>
+
 <button class="px-4 py-2 bg-green-600 text-white rounded" onclick="analyzeSales()">Analyze</button>
 </div>
+
 <div class="mt-6" id="output"></div>
+
 <script>
 let longData = [];
 let jsonData = [];
@@ -130,13 +137,6 @@ function analyzeSales() {
   output.innerHTML = '';
 
   const months = ["Jul", "Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun"];
-  let salesRow = `<table><tr>`;
-  months.forEach(m => salesRow += `<td>${m}SalesUnit</td>`);
-  salesRow += `</tr><tr>`;
-  months.forEach(m => salesRow += `<td>${jsonData[0][m + 'SalesUnit'] || 0}</td>`);
-  salesRow += `</tr></table>`;
-// output.innerHTML += salesRow;
-
   const orderedMonths = getOrderedMonths(filtered);
   const distributors = [...new Set(filtered.map(d => d.Distributor))];
 
@@ -160,8 +160,7 @@ function analyzeSales() {
                 <th>Month</th><th>Retention %</th><th>Growth %</th><th>Retained</th><th>New</th><th>Lost</th><th>Coverage</th><th>Sales</th>
               </tr>
             </thead>
-            <tbody>
-      `;
+            <tbody>`;
 
       for (let i = 1; i < orderedMonths.length; i++) {
         const prevMonth = orderedMonths[i - 1];
@@ -189,56 +188,47 @@ function analyzeSales() {
             <td>${lostCust.length}</td>
             <td>${coverage}</td>
             <td>${currSales}</td>
-          </tr>
-        `;
+          </tr>`;
       }
 
       tableHTML += `</tbody></table></div>`;
-
-      // Insert month-wise sales row inside product block
-      let monthWiseRow = '<tr><td colspan="8" class="bg-gray-100 text-left px-2 py-1 text-sm text-gray-600">Month-wise Sales (Jul - Jun)</td></tr>';
-      monthWiseRow += '<tr>';
-      const fixedMonthOrder = ["Jul", "Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun"];
-      fixedMonthOrder.forEach(month => {
-        const sales = productData.filter(d => d.Month === month).reduce((sum, d) => sum + d.Sales, 0);
-        monthWiseRow += `<td>${month}: ${sales}</td>`;
-      });
-      monthWiseRow += '</tr>';
-      tableHTML = tableHTML.replace('</tbody>', `${monthWiseRow}</tbody>`);
-                
       output.innerHTML += tableHTML;
     });
   });
 }
+
 document.getElementById('filterBrick').addEventListener('change', function() {
-    const selectedBrick = this.value;
-    const customerSelect = document.getElementById('filterCustomer');
-    customerSelect.tomselect.destroy();
-    customerSelect.innerHTML = `<option value="">All</option>`;
-    
-    const filteredCustomers = [...new Set(longData.filter(d => !selectedBrick || d.Brick === selectedBrick).map(d => d.CustomerID))];
-    filteredCustomers.forEach(customer => {
-        const opt = document.createElement('option');
-        opt.value = opt.text = customer;
-        customerSelect.appendChild(opt);
-    });
-    new TomSelect(customerSelect);
+  const selectedBrick = this.value;
+  const customerSelect = document.getElementById('filterCustomer');
+  customerSelect.tomselect.destroy();
+  customerSelect.innerHTML = `<option value="">All</option>`;
+
+  const filteredCustomers = [...new Set(longData.filter(d => !selectedBrick || d.Brick === selectedBrick).map(d => d.CustomerID))];
+  filteredCustomers.forEach(customer => {
+    const opt = document.createElement('option');
+    opt.value = opt.text = customer;
+    customerSelect.appendChild(opt);
+  });
+  new TomSelect(customerSelect);
 });
 
 document.getElementById('filterDistributor').addEventListener('change', function() {
-    const selectedDistributor = this.value;
-    const brickSelect = document.getElementById('filterBrick');
-    brickSelect.tomselect.destroy();
-    brickSelect.innerHTML = `<option value="">All</option>`;
-    
-    const filteredBricks = [...new Set(longData.filter(d => !selectedDistributor || d.Distributor === selectedDistributor).map(d => d.Brick))];
-    filteredBricks.forEach(brick => {
-        const opt = document.createElement('option');
-        opt.value = opt.text = brick;
-        brickSelect.appendChild(opt);
-    });
-    new TomSelect(brickSelect);
+  const selectedDistributor = this.value;
+  const brickSelect = document.getElementById('filterBrick');
+  brickSelect.tomselect.destroy();
+  brickSelect.innerHTML = `<option value="">All</option>`;
+
+  const filteredBricks = [...new Set(longData.filter(d => !selectedDistributor || d.Distributor === selectedDistributor).map(d => d.Brick))];
+  filteredBricks.forEach(brick => {
+    const opt = document.createElement('option');
+    opt.value = opt.text = brick;
+    brickSelect.appendChild(opt);
+  });
+  new TomSelect(brickSelect);
 });
 </script>
-<footer class="text-center text-gray-500 text-xs mt-8">Prepared by Rao Yasir</footer></body>
+
+<footer class="text-center text-gray-500 text-xs mt-8">Prepared by Rao Yasir</footer>
+
+</body>
 </html>
